@@ -1,0 +1,24 @@
+{
+  "name": "aptivelle",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aptivelle — Academia-Industry Skill & Internship Portal (SIH 2026)",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "setup": "npm install && npm run db:push && npm run db:seed",
+    "dev": "concurrently -n API,WEB -c blue,yellow \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "db:push": "npm run db:push --workspace backend",
+    "db:seed": "npm run db:seed --workspace backend",
+    "build": "npm run build --workspace frontend",
+    "start": "npm run start --workspace backend",
+    "test:smoke": "node --test tests/preview-smoke.test.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

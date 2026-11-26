@@ -1,0 +1,216 @@
+// Aptivelle — Prisma schema (SQLite)
+// Academia-Industry Skill & Internship Portal + Skill Verification & Badges addendum
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  STUDENT
+  FACULTY
+  RECRUITER
+}
+
+enum Proficiency {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum SkillSource {
+  RESUME
+  PROJECT
+  COURSE
+  MANUAL
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  REJECTED
+  COMPLETED
+}
+
+enum RecommendationType {
+  COURSE
+  PROJECT
+  CERTIFICATION
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  createdAt    DateTime @default(now())
+  student      StudentProfile?
+  faculty      FacultyProfile?
+  recruiter    RecruiterProfile?
+}
+
+model StudentProfile {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @unique
+  user        User     @relation(fields: [userId], references: [id])
+  institute   String
+  branch      String
+  year        String
+  targetRoles String   @default("[]") // JSON array of role names
+  resumeText  String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  skills      StudentSkill[]
+  projects    Project[]
+  courses     Course[]
+  applications Application[]
+}
+
+model FacultyProfile {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  user            User     @relation(fields: [userId], references: [id])
+  institute       String
+  department      String
+  designation     String
+  verifiedCourses Course[] @relation("CourseVerifiedBy")
+}
+
+model RecruiterProfile {
+  id             Int      @id @default(autoincrement())
+  userId         Int      @unique
+  user           User     @relation(fields: [userId], references: [id])
+  company        String
+  designation    String
+  companyWebsite String?
+  internships    Internship[]
+  feedback       RecruiterFeedback[]
+}
+
+model Skill {
+  id               Int      @id @default(autoincrement())
+  name             String   @unique
+  category         String?
+  studentSkills    StudentSkill[]
+  roleRequirements RoleSkillRequirement[]
+  recommendations Recommendation[]
+}
+
+model StudentSkill {
+  id               Int         @id @default(autoincrement())
+  studentProfileId Int
+  skillId          Int
+  proficiency      Proficiency
+  source           SkillSource
+  isVerified       Boolean     @default(false)
+  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
+  skill            Skill       @relation(fields: [skillId], references: [id])
+
+  @@unique([studentProfileId, skillId])
+}
+
+model Project {
+  id               Int             @id @default(autoincrement())
+  studentProfileId Int
+  title            String
+  description      String          @default("")
+  link             String?
+  skillsUsed       String          @default("[]") // JSON array of skill names
+  studentProfile   StudentProfile  @relation(fields: [studentProfileId], references: [id])
+}
+
+model Course {
+  id                  Int                @id @default(autoincrement())
+  studentProfileId    Int
+  title               String
+  provider            String             @default("")
+  link                String?
+  certificateLink     String?
+  skillNames          String             @default("[]") // JSON array of skill names tagged to this course
+  verificationStatus  VerificationStatus @default(PENDING)
+  rejectionReason     String?
+  verifiedByFacultyId Int?
+  verifiedByFaculty   FacultyProfile?    @relation("CourseVerifiedBy", fields: [verifiedByFacultyId], references: [id])
+  verifiedAt          DateTime?
+  createdAt           DateTime           @default(now())
+  studentProfile      StudentProfile     @relation(fields: [studentProfileId], references: [id])
+}
+
+model Role {
+  id           Int     @id @default(autoincrement())
+  name         String  @unique
+  description  String?
+  requirements RoleSkillRequirement[]
+}
+
+model RoleSkillRequirement {
+  id                  Int         @id @default(autoincrement())
+  roleId              Int
+  skillId             Int
+  requiredProficiency Proficiency
+  role                Role        @relation(fields: [roleId], references: [id])
+  skill               Skill       @relation(fields: [skillId], references: [id])
+
+  @@unique([roleId, skillId])
+}
+
+model Internship {
+  id                 Int                 @id @default(autoincrement())
+  recruiterProfileId Int
+  title              String
+  description        String
+  location           String
+  stipend            Int? // monthly stipend in INR (0 = unpaid)
+  duration           String
+  requiredSkills     String              @default("[]") // JSON array of skill names
+  targetRoles        String              @default("[]") // JSON array of role names
+  createdAt          DateTime            @default(now())
+  recruiterProfile   RecruiterProfile    @relation(fields: [recruiterProfileId], references: [id])
+  applications       Application[]
+  feedback           RecruiterFeedback[]
+}
+
+model Application {
+  id               Int               @id @default(autoincrement())
+  internshipId     Int
+  studentProfileId Int
+  status           ApplicationStatus @default(APPLIED)
+  appliedAt        DateTime          @default(now())
+  internship       Internship        @relation(fields: [internshipId], references: [id])
+  studentProfile   StudentProfile    @relation(fields: [studentProfileId], references: [id])
+
+  @@unique([internshipId, studentProfileId])
+}
+
+model RecruiterFeedback {
+  id                 Int       @id @default(autoincrement())
+  internshipId       Int
+  recruiterProfileId Int
+  readinessRating    Int // 1-5
+  comments           String    @default("")
+  createdAt          DateTime  @default(now())
+  internship         Internship @relation(fields: [internshipId], references: [id])
+  recruiterProfile   RecruiterProfile @relation(fields: [recruiterProfileId], references: [id])
+}
+
+model Recommendation {
+  id          Int                @id @default(autoincrement())
+  skillId      Int
+  type         RecommendationType
+  title        String
+  provider     String             @default("")
+  link         String?
+  description  String             @default("")
+  skill        Skill              @relation(fields: [skillId], references: [id])
+}
